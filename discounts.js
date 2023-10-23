@@ -11,7 +11,6 @@ const passport = new window.CredenzaPassport({
     },
   },
 })
-console.log(passport)
 
 const validateRulesetWithApi = async (opts) => {
   const apiUrl = `https://api.testnets.credenza.online`
@@ -91,16 +90,16 @@ const updateCart = async (opts) => {
   });
 }
 
-const start = async () => {
+
+(async () => {
   await passport.init();
 
   passport.onLogin(({provider, opts}) => {
     console.log('logged in & checking')
     checkDiscounts();
   })
-  if(passport.isLoggedIn){
+
+  if (passport.isLoggedIn){
     checkDiscounts();
   }
-  console.log(passport)
-}
-start();
+})();
