@@ -11,7 +11,7 @@ const passport = new window.CredenzaPassport({
     },
   },
 })
-
+console.log(passport)
 
 const validateRulesetWithApi = async (opts) => {
   const apiUrl = `https://api.testnets.credenza.online`
