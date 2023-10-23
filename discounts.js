@@ -91,16 +91,16 @@ const updateCart = async (opts) => {
   });
 }
 
-
-(async () => {
+const start = async () => {
   await passport.init();
 
   passport.onLogin(({provider, opts}) => {
     console.log('logged in & checking')
     checkDiscounts();
   })
-
-  if (passport.isLoggedIn){
+  if(passport.isLoggedIn){
     checkDiscounts();
   }
-})();
+  console.log(passport)
+}
+start();
