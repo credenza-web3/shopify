@@ -1,4 +1,4 @@
-export const discounts = (passport) => {
+export const discountsScript = (passport) => {
   const validateRulesetWithApi = async (opts) => {
     const apiUrl = `https://api.testnets.credenza.online`
     const result = await fetch(`${apiUrl}/discounts/rulesets/validate`, {
