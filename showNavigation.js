@@ -1,7 +1,7 @@
 export const showNavScript = async (passport) => {
   const renderLoginImageOrPassportNav = () => {
     const customerEmail = "{{ customer.email }}";
-    const loginButton = document.querySelector('#loginBluenatics');
+    const loginButton = document.querySelector('#login-button-image');
     if (customerEmail && !passport.isLoggedIn) {
       if (loginButton) loginButton.style.display="block";
     }
