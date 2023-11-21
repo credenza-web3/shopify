@@ -1,4 +1,4 @@
-export const loginScript = async (passport) => {
+export const showNavScript = async (passport) => {
   const renderLoginImageOrPassportNav = () => {
     const customerEmail = "{{ customer.email }}";
     const loginButton = document.querySelector('#loginBluenatics');
