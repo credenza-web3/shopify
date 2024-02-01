@@ -1,8 +1,12 @@
 const CHAIND_ID = '80001';
+
+const $settings = document.querySelector(`#credenza-client-settings`);
+const clientId = $settings?.getAttribute("data-credenza-client-id");
+
 window.passport = new window.CredenzaPassport({
   env: "staging",
   chainId: CHAIND_ID,
-  clientId: "{{ settings.credenza_client_id }}",
+  clientId,
   config: {
     auth: {
       metamask: false,
