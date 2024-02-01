@@ -30,7 +30,7 @@ export const discountsScript = (passport) => {
       try {
         ({ discount: { code } } = await validateRulesetWithApi({ 
           chainId: passport.chainId, 
-          passportId: { payload: timestamp, sig: signature, chainId: passport.chainId, scanType: "PASSPORT_ID" } ,
+          passportId: { date: timestamp, sig: signature, chainId: passport.chainId, scanType: "PASSPORT_ID" } ,
           rulesetId: rulesetId
         }))
       } catch (e) {
