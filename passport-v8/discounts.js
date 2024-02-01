@@ -48,9 +48,6 @@ export const discountsScript = (passport) => {
     fetch(`/discount/${code}`)
   
     await updateCart()
-  
-    const checkImg = document.getElementById('checkImg');
-    checkImg.style.display="inline"
   }
   
   const updateCart = async (opts) => {
