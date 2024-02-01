@@ -1,7 +1,7 @@
 const CHAIND_ID = '80001';
 window.passport = new window.CredenzaPassport({
   env: "staging",
-  chainId: "80001",
+  chainId: CHAIND_ID,
   clientId: "{{ settings.credenza_client_id }}",
   config: {
     auth: {
