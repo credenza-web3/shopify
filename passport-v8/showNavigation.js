@@ -1,4 +1,4 @@
-const showNavScript = async (passport) => {
+export const showNavScript = async (passport) => {
   console.log("passport", passport);
   const renderLoginImageOrPassportNav = () => {
     const customerEmail = "{{ customer.email }}";

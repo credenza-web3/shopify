@@ -13,7 +13,7 @@ window.passport = new window.CredenzaPassport({
   },
 });
 
-const initPassport = async () => {
+export const initPassport = async () => {
   await passport.init();
   return passport;
 };
