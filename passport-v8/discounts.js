@@ -22,8 +22,11 @@ export const discountsScript = (passport) => {
     const signer = await providerObj.getSigner()
     const signature = await signer.signMessage(timestamp)
     
-    const $settings = document.querySelector(`#customSettings`);
-    const rulesetId = $settings?.getAttribute("data-rulesetId");
+    const $rulesetIdContainer = document.querySelector(`#credenza-ruleset-id`);
+    const rulesetId = $rulesetIdContainer?.getAttribute("data-credenza-ruleset-id");
+
+    const $defaultCodeContainer = document.querySelector(`#credenza-default-code`);
+    const defaultCode = $defaultCodeContainer?.getAttribute("data-credenza-default-code") || "";
     
     let code = null;
     if (rulesetId) {
@@ -41,7 +44,7 @@ export const discountsScript = (passport) => {
     console.log(code);
     // set default code if no code is returned from the ruleset
     if (!code) {
-      code = 'APESPASSPORT'
+      code = defaultCode
     }
       
     document.cookie = `discount_code=${code}; path=/`;

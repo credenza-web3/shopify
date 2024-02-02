@@ -1,5 +1,4 @@
 export const showNavScript = async (passport) => {
-  console.log("passport", passport);
   const renderLoginImageOrPassportNav = () => {
     const customerEmail = "{{ customer.email }}";
     const loginButton = document.querySelector('#login-button-image');
