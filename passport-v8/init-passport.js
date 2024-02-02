@@ -1,7 +1,7 @@
 const CHAIND_ID = '80001';
 
-const $settings = document.querySelector(`#credenza-client-settings`);
-const clientId = $settings?.getAttribute("data-credenza-client-id");
+const $clientIdContainer = document.querySelector(`#credenza-client-id`);
+const clientId = $clientIdContainer?.getAttribute("data-credenza-client-id");
 
 window.passport = new window.CredenzaPassport({
   env: "staging",
