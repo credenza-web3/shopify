@@ -4,6 +4,7 @@ const clientId = $clientIdContainer?.getAttribute("data-credenza-client-id");
 
 
 export const initPassport = async (chainId = '137') => {
+  console.log('Passport is initiated on chain id: ', chainId)
   window.passport = new window.CredenzaPassport({
     env: "staging",
     chainId,
