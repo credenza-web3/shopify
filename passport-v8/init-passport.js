@@ -7,15 +7,16 @@ export const initPassport = async (chainId = DEFAULT_CHAIN_ID) => {
   if (!chainId.trim()) chainId = DEFAULT_CHAIN_ID;
   console.log('Passport is initiated on chain id: ', chainId)
   window.passport = new window.CredenzaPassport({
-    env: "staging",
     chainId,
     clientId,
     config: {
       auth: {
+        credentials: false,
+        email: true,
+        phone: false,
         metamask: false,
         google: false,
         ticketmaster: false,
-        passwordless: false
       }
     },
   });
