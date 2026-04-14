@@ -34,12 +34,14 @@ const CONFIG = {
 // ============================================================
 
 export const initPassport = async () => {
+  console.log("[Credenza] initPassport — chainId:", CONFIG.chainId);
   window.passport = new window.CredenzaPassport({
     env: CONFIG.env,
     chainId: CONFIG.chainId,
   });
 
   await passport.init();
+  console.log("[Credenza] passport initialized, isLoggedIn:", passport.isLoggedIn);
   return passport;
 };
 
@@ -51,6 +53,7 @@ export const showNavScript = async (passport) => {
   const renderLoginImageOrPassportNav = () => {
     const customerEmail = "{{ customer.email }}";
     const loginButton = document.querySelector("#login-button-image");
+    console.log("[Credenza] renderNav — isLoggedIn:", passport.isLoggedIn, "customerEmail:", customerEmail);
 
     if (customerEmail && !passport.isLoggedIn) {
       if (loginButton) loginButton.style.display = "block";
@@ -62,8 +65,14 @@ export const showNavScript = async (passport) => {
     }
   };
 
-  passport.onLogin(() => renderLoginImageOrPassportNav());
-  passport.onLogout(() => renderLoginImageOrPassportNav());
+  passport.onLogin(() => {
+    console.log("[Credenza] event: onLogin");
+    renderLoginImageOrPassportNav();
+  });
+  passport.onLogout(() => {
+    console.log("[Credenza] event: onLogout");
+    renderLoginImageOrPassportNav();
+  });
   renderLoginImageOrPassportNav();
 };
 
@@ -75,6 +84,7 @@ export const discountsScript = (passport) => {
   const apiUrl = "https://api.testnets.credenza.online";
 
   const validateRulesetWithApi = async (opts) => {
+    console.log("[Credenza] validateRuleset — rulesetId:", opts.rulesetId);
     const result = await fetch(`${apiUrl}/discounts/rulesets/validate`, {
       method: "POST",
       headers: {
@@ -86,11 +96,17 @@ export const discountsScript = (passport) => {
         passportId: opts.passportId,
       }),
     });
-    if (!result.ok) return;
-    return await result.json();
+    if (!result.ok) {
+      console.warn("[Credenza] validateRuleset — response not ok:", result.status);
+      return;
+    }
+    const data = await result.json();
+    console.log("[Credenza] validateRuleset — response:", data);
+    return data;
   };
 
   const checkDiscounts = async () => {
+    console.log("[Credenza] checkDiscounts — start");
     const timestamp = String(new Date().getTime());
     const providerObj = await passport.getWeb3Provider();
     const signer = await providerObj.getSigner();
@@ -99,6 +115,7 @@ export const discountsScript = (passport) => {
     const $settings = document.querySelector("#customSettings");
     const rulesetId =
       $settings?.getAttribute("data-rulesetId") || CONFIG.discounts.rulesetId;
+    console.log("[Credenza] checkDiscounts — rulesetId:", rulesetId);
 
     let code = null;
     if (rulesetId) {
@@ -116,11 +133,12 @@ export const discountsScript = (passport) => {
           rulesetId,
         }));
       } catch (e) {
-        console.log("validation ruleset error:", e?.message || e);
+        console.log("[Credenza] checkDiscounts — validation error:", e?.message || e);
       }
     }
 
     if (!code) code = "APESPASSPORT";
+    console.log("[Credenza] checkDiscounts — applying code:", code);
 
     document.cookie = `discount_code=${code}; path=/`;
     fetch(`/discount/${code}`);
@@ -132,6 +150,7 @@ export const discountsScript = (passport) => {
 
   const updateCart = async (opts) => {
     const userAddress = await passport.getAddress();
+    console.log("[Credenza] updateCart — address:", userAddress);
     fetch("/cart/update.js", {
       method: "post",
       headers: {
@@ -139,11 +158,17 @@ export const discountsScript = (passport) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ note: userAddress, ...(opts || {}) }),
-    }).catch((e) => console.error("Cart update error:", e));
+    }).catch((e) => console.error("[Credenza] updateCart error:", e));
   };
 
-  passport.onLogin(() => checkDiscounts());
-  if (passport.isLoggedIn) checkDiscounts();
+  passport.onLogin(() => {
+    console.log("[Credenza] discountsScript — onLogin triggered");
+    checkDiscounts();
+  });
+  if (passport.isLoggedIn) {
+    console.log("[Credenza] discountsScript — already logged in, checking discounts");
+    checkDiscounts();
+  }
 };
 
 // ============================================================
@@ -152,10 +177,10 @@ export const discountsScript = (passport) => {
 
 export const membershipScript = (passport, membershipPackage) => {
   const checkMembership = async () => {
-    const { meta, isMember } = await passport.checkMembership(
-      await passport.getAddress(),
-      membershipPackage,
-    );
+    const address = await passport.getAddress();
+    console.log("[Credenza] checkMembership — address:", address, "package:", membershipPackage);
+    const { meta, isMember } = await passport.checkMembership(address, membershipPackage);
+    console.log("[Credenza] checkMembership — isMember:", isMember, "meta:", meta);
     if (!meta) return;
 
     document.cookie = `discount_code=${meta}; path=/`;
@@ -165,6 +190,7 @@ export const membershipScript = (passport, membershipPackage) => {
 
   const updateCart = async (opts) => {
     const userAddress = await passport.getAddress();
+    console.log("[Credenza] membership updateCart — address:", userAddress);
     fetch("/cart/update.js", {
       method: "post",
       headers: {
@@ -172,11 +198,17 @@ export const membershipScript = (passport, membershipPackage) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ note: userAddress, ...(opts || {}) }),
-    }).catch((e) => console.error("Cart update error:", e));
+    }).catch((e) => console.error("[Credenza] updateCart error:", e));
   };
 
-  passport.on("LOGIN", () => checkMembership());
-  if (passport.isLoggedIn) checkMembership();
+  passport.on("LOGIN", () => {
+    console.log("[Credenza] membershipScript — LOGIN triggered");
+    checkMembership();
+  });
+  if (passport.isLoggedIn) {
+    console.log("[Credenza] membershipScript — already logged in, checking membership");
+    checkMembership();
+  }
 };
 
 // ============================================================
@@ -186,6 +218,7 @@ export const membershipScript = (passport, membershipPackage) => {
 const checkNftOwnership = async (passport, nftConfig) => {
   try {
     const address = await passport.getAddress();
+    console.log("[Credenza] checkNftOwnership — address:", address, "contract:", nftConfig.contractAddress, "tokenId:", nftConfig.tokenId);
     const provider = await passport.getWeb3Provider();
     const abi = [
       "function balanceOf(address account, uint256 id) view returns (uint256)",
@@ -196,9 +229,10 @@ const checkNftOwnership = async (passport, nftConfig) => {
       provider,
     );
     const balance = await contract.balanceOf(address, nftConfig.tokenId);
+    console.log("[Credenza] checkNftOwnership — balance:", balance.toString());
     return balance.gt(0);
   } catch (e) {
-    console.error("NFT ownership check failed:", e?.message || e);
+    console.error("[Credenza] checkNftOwnership failed:", e?.message || e);
     return false;
   }
 };
@@ -255,6 +289,7 @@ const injectModalStyles = () => {
 };
 
 const showModal = (products) => {
+  console.log("[Credenza] showModal — products count:", products.length);
   injectModalStyles();
 
   const existing = document.getElementById("nft-modal-overlay");
@@ -295,6 +330,7 @@ const showModal = (products) => {
   modal.querySelectorAll("[data-variant]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       btn.textContent = "Adding...";
+      console.log("[Credenza] addToCart — variantId:", btn.dataset.variant);
       try {
         await fetch("/cart/add.js", {
           method: "POST",
@@ -306,7 +342,7 @@ const showModal = (products) => {
         btn.textContent = "✓ Added";
       } catch (e) {
         btn.textContent = "Error";
-        console.error("Add to cart error:", e);
+        console.error("[Credenza] addToCart error:", e);
       }
     });
   });
@@ -314,17 +350,20 @@ const showModal = (products) => {
 
 export const hiddenCollectionScript = async (passport, config) => {
   const check = async () => {
+    console.log("[Credenza] hiddenCollection — checking NFT ownership");
     const hasNft = await checkNftOwnership(passport, config.nft);
     if (!hasNft) {
-      console.log("No NFT found, skipping hidden collection");
+      console.log("[Credenza] hiddenCollection — no NFT, skipping");
       return;
     }
 
+    console.log("[Credenza] hiddenCollection — fetching collection:", config.collectionHandle);
     try {
       const res = await fetch(
         `/collections/${config.collectionHandle}/products.json`,
       );
       const { products } = await res.json();
+      console.log("[Credenza] hiddenCollection — products fetched:", products.length);
       const mapped = products.map((p) => ({
         title: p.title,
         image: p.images[0]?.src,
@@ -333,12 +372,18 @@ export const hiddenCollectionScript = async (passport, config) => {
       }));
       if (mapped.length) showModal(mapped);
     } catch (e) {
-      console.error("Failed to fetch hidden collection:", e);
+      console.error("[Credenza] hiddenCollection fetch error:", e);
     }
   };
 
-  passport.on("LOGIN", check);
-  if (passport.isLoggedIn) check();
+  passport.on("LOGIN", () => {
+    console.log("[Credenza] hiddenCollectionScript — LOGIN triggered");
+    check();
+  });
+  if (passport.isLoggedIn) {
+    console.log("[Credenza] hiddenCollectionScript — already logged in, checking");
+    check();
+  }
 };
 
 // ============================================================
@@ -346,15 +391,20 @@ export const hiddenCollectionScript = async (passport, config) => {
 // ============================================================
 
 export const credenzaShopify = async (passport, config = CONFIG) => {
+  console.log("[Credenza] credenzaShopify — config:", JSON.stringify(config, null, 2));
+
   if (config.discounts?.enabled) {
+    console.log("[Credenza] discounts enabled");
     discountsScript(passport);
   }
 
   if (config.membership?.enabled) {
+    console.log("[Credenza] membership enabled");
     membershipScript(passport, config.membership.package);
   }
 
   if (config.hiddenCollection?.enabled) {
+    console.log("[Credenza] hiddenCollection enabled");
     hiddenCollectionScript(passport, config.hiddenCollection);
   }
 };
