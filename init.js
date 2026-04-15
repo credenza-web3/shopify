@@ -17,5 +17,6 @@ export { showNavScript };
 
 export const credenzaShopify = (passport, config = CONFIG) => {
   if (config.discounts?.enabled) discountsScript(passport, config);
-  if (config.hiddenCollection?.enabled) hiddenCollectionScript(passport, config);
+  if (config.hiddenCollection?.enabled)
+    hiddenCollectionScript(passport, config);
 };
