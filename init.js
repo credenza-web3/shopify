@@ -74,11 +74,11 @@ export const showNavScript = async (passport) => {
     }
   };
 
-  passport.onLogin(() => {
+  passport.on("LOGIN", () => {
     console.log("[Credenza] event: onLogin");
     renderLoginImageOrPassportNav();
   });
-  passport.onLogout(() => {
+  passport.on("LOGOUT", () => {
     console.log("[Credenza] event: onLogout");
     renderLoginImageOrPassportNav();
   });
@@ -176,7 +176,7 @@ export const discountsScript = (passport) => {
     }).catch((e) => console.error("[Credenza] updateCart error:", e));
   };
 
-  passport.onLogin(() => {
+  passport.on("LOGIN", () => {
     console.log("[Credenza] discountsScript — onLogin triggered");
     checkDiscounts();
   });
