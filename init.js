@@ -3,32 +3,10 @@
 // ============================================================
 
 // ============================================================
-// CONFIG
+// CONFIG — is set from outside via window.credenzaConfig
 // ============================================================
 
-const CONFIG = {
-  chainId: "84532", // or '1', '137', etc
-  clientId: "67039801735659a157687bfb",
-
-  discounts: {
-    enabled: false,
-    rulesetId: "68109520182622174f6fc7cb",
-  },
-
-  membership: {
-    enabled: false,
-    package: "0x12a03c4330cf8bd7db2c90cfd378ec6ff02e19fa",
-  },
-
-  hiddenCollection: {
-    enabled: true,
-    collectionHandle: "sharks-test-shop-copy", // e.g. "members-only"
-    nft: {
-      contractAddress: "0x6c83c06a3edb16f6e79ae3c0cd9e21cfda35d25c",
-      tokenId: "1",
-    },
-  },
-};
+const CONFIG = window.credenzaConfig || {};
 
 // ============================================================
 // INIT — EVM
@@ -71,124 +49,40 @@ export const showNavScript = async (passport) => {
 };
 
 // ============================================================
-// DISCOUNTS
+// GATE — unified access check
+//
+// gate.type = "nft"        → checks ERC-1155 token balance
+// gate.type = "ruleset"    → validates ruleset via Credenza API
+// gate.type = "membership" → checks membership via passport
+//
+// Returns { allowed: boolean, code: string | null }
+// code — discount code (ruleset and membership only)
 // ============================================================
 
-export const discountsScript = (passport) => {
-  const apiUrl = "https://api.testnets.credenza.online";
+const checkGate = async (passport, gate) => {
+  console.log("[Credenza] checkGate — type:", gate.type);
 
-  const validateRulesetWithApi = async (opts) => {
-    console.log("[Credenza] validateRuleset — rulesetId:", opts.rulesetId);
-    const result = await fetch(`${apiUrl}/discounts/rulesets/validate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${passport.accessToken}`,
-      },
-      body: JSON.stringify({
-        ruleSetId: opts.rulesetId,
-        passportId: opts.passportId,
-      }),
-    });
-    if (!result.ok) {
-      console.warn(
-        "[Credenza] validateRuleset — response not ok:",
-        result.status,
-      );
-      return;
-    }
-    const data = await result.json();
-    console.log("[Credenza] validateRuleset — response:", data);
-    return data;
-  };
-
-  const checkDiscounts = async () => {
-    console.log("[Credenza] checkDiscounts — start");
-    const timestamp = String(new Date().getTime());
-    const providerObj = await passport.getWeb3Provider();
-    const signer = await providerObj.getSigner();
-    const signature = await signer.signMessage(timestamp);
-
-    const $settings = document.querySelector("#customSettings");
-    const rulesetId =
-      $settings?.getAttribute("data-rulesetId") || CONFIG.discounts.rulesetId;
-    console.log("[Credenza] checkDiscounts — rulesetId:", rulesetId);
-
-    let code = null;
-    if (rulesetId) {
-      try {
-        ({
-          discount: { code },
-        } = await validateRulesetWithApi({
-          chainId: CONFIG.chainId,
-          passportId: {
-            payload: timestamp,
-            sig: signature,
-            chainId: CONFIG.chainId,
-            scanType: "PASSPORT_ID",
-          },
-          rulesetId,
-        }));
-      } catch (e) {
-        console.log(
-          "[Credenza] checkDiscounts — validation error:",
-          e?.message || e,
-        );
-      }
-    }
-
-    if (!code) code = "APESPASSPORT";
-    console.log("[Credenza] checkDiscounts — applying code:", code);
-
-    document.cookie = `discount_code=${code}; path=/`;
-    fetch(`/discount/${code}`);
-    await updateCart();
-
-    const checkImg = document.getElementById("checkImg");
-    if (checkImg) checkImg.style.display = "inline";
-  };
-
-  const updateCart = async (opts) => {
-    const userAddress = await passport.getAddress();
-    console.log("[Credenza] updateCart — address:", userAddress);
-    fetch("/cart/update.js", {
-      method: "post",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ note: userAddress, ...(opts || {}) }),
-    }).catch((e) => console.error("[Credenza] updateCart error:", e));
-  };
-
-  passport.on("LOGIN", () => {
-    console.log("[Credenza] discountsScript — onLogin triggered");
-    checkDiscounts();
-  });
-  if (passport.isLoggedIn) {
-    console.log(
-      "[Credenza] discountsScript — already logged in, checking discounts",
-    );
-    checkDiscounts();
+  if (gate.type === "nft") {
+    const allowed = await checkNftOwnership(passport, gate);
+    return { allowed: true, code: null };
   }
-};
 
-// ============================================================
-// MEMBERSHIP
-// ============================================================
+  if (gate.type === "ruleset") {
+    const result = await validateRuleset(passport, gate.rulesetId);
+    return { allowed: !!result, code: result?.discount?.code || null };
+  }
 
-export const membershipScript = (passport, membershipPackage) => {
-  const checkMembership = async () => {
+  if (gate.type === "membership") {
     const address = await passport.getAddress();
     console.log(
       "[Credenza] checkMembership — address:",
       address,
       "package:",
-      membershipPackage,
+      gate.membershipPackage,
     );
-    const { meta, isMember } = await passport.checkMembership(
+    const { isMember, meta } = await passport.checkMembership(
       address,
-      membershipPackage,
+      gate.membershipPackage,
     );
     console.log(
       "[Credenza] checkMembership — isMember:",
@@ -196,68 +90,82 @@ export const membershipScript = (passport, membershipPackage) => {
       "meta:",
       meta,
     );
-    if (!meta) return;
-
-    document.cookie = `discount_code=${meta}; path=/`;
-    fetch(`/discount/${meta}`);
-    await updateCart();
-  };
-
-  const updateCart = async (opts) => {
-    const userAddress = await passport.getAddress();
-    console.log("[Credenza] membership updateCart — address:", userAddress);
-    fetch("/cart/update.js", {
-      method: "post",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ note: userAddress, ...(opts || {}) }),
-    }).catch((e) => console.error("[Credenza] updateCart error:", e));
-  };
-
-  passport.on("LOGIN", () => {
-    console.log("[Credenza] membershipScript — LOGIN triggered");
-    checkMembership();
-  });
-  if (passport.isLoggedIn) {
-    console.log(
-      "[Credenza] membershipScript — already logged in, checking membership",
-    );
-    checkMembership();
+    return { allowed: isMember, code: meta || null };
   }
+
+  console.warn("[Credenza] checkGate — unknown gate type:", gate.type);
+  return { allowed: false, code: null };
+};
+
+// ============================================================
+// RULESET VALIDATION
+// ============================================================
+
+const validateRuleset = async (passport, rulesetId) => {
+  const apiUrl = "https://api.testnets.credenza.online";
+  console.log("[Credenza] validateRuleset — rulesetId:", rulesetId);
+
+  const timestamp = String(new Date().getTime());
+  const providerObj = await passport.getWeb3Provider();
+  const signer = await providerObj.getSigner();
+  const signature = await signer.signMessage(timestamp);
+
+  const result = await fetch(`${apiUrl}/discounts/rulesets/validate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${passport.accessToken}`,
+    },
+    body: JSON.stringify({
+      ruleSetId: rulesetId,
+      passportId: {
+        payload: timestamp,
+        sig: signature,
+        chainId: CONFIG.chainId,
+        scanType: "PASSPORT_ID",
+      },
+    }),
+  });
+
+  if (!result.ok) {
+    console.warn(
+      "[Credenza] validateRuleset — response not ok:",
+      result.status,
+    );
+    return null;
+  }
+
+  const data = await result.json();
+  console.log("[Credenza] validateRuleset — response:", data);
+  return data;
 };
 
 // ============================================================
 // ERC-1155 NFT CHECK
 // ============================================================
 
-const checkNftOwnership = async (passport, nftConfig) => {
+const checkNftOwnership = async (passport, gate) => {
   try {
     const address = await passport.getAddress();
     console.log(
       "[Credenza] checkNftOwnership — address:",
       address,
       "contract:",
-      nftConfig.contractAddress,
+      gate.contractAddress,
       "tokenId:",
-      nftConfig.tokenId,
+      gate.tokenId,
     );
     const provider = await passport.getWeb3Provider();
     const abi = [
       "function balanceOf(address account, uint256 id) view returns (uint256)",
     ];
-    const contract = new ethers.Contract(
-      nftConfig.contractAddress,
+    const contract = new passport.ethers.Contract(
+      gate.contractAddress,
       abi,
       provider,
     );
-    const balance = await contract.balanceOf(address, nftConfig.tokenId);
-    console.log(
-      "[Credenza] checkNftOwnership — balance:",
-      balance,
-      balance.toString(),
-    );
+    const balance = await contract.balanceOf(address, gate.tokenId);
+    console.log("[Credenza] checkNftOwnership — balance:", balance.toString());
     return balance > 0n;
   } catch (e) {
     console.error("[Credenza] checkNftOwnership failed:", e?.message || e);
@@ -266,7 +174,165 @@ const checkNftOwnership = async (passport, nftConfig) => {
 };
 
 // ============================================================
+// DISCOUNTS
+//
+// config.discounts = {
+//   enabled: true,
+//   defaultCode: "FALLBACK",
+//   gate: {
+//     type: "ruleset",
+//     rulesetId: "abc123"
+//   }
+// }
+// — or —
+//   gate: {
+//     type: "membership",
+//     membershipPackage: "0x..."
+//   }
+// ============================================================
+
+export const discountsScript = (passport, config = CONFIG) => {
+  const run = async () => {
+    console.log("[Credenza] discountsScript — start");
+    const { allowed, code: gateCode } = await checkGate(
+      passport,
+      config.discounts.gate,
+    );
+
+    if (!allowed) {
+      console.log("[Credenza] discountsScript — gate not passed, skipping");
+      return;
+    }
+
+    const code = gateCode || config.discounts.defaultCode || "";
+    console.log("[Credenza] discountsScript — applying code:", code);
+
+    if (code) {
+      document.cookie = `discount_code=${code}; path=/`;
+      fetch(`/discount/${code}`);
+    }
+
+    await updateCart(passport);
+
+    const checkImg = document.getElementById("checkImg");
+    if (checkImg) checkImg.style.display = "inline";
+  };
+
+  passport.on("LOGIN", () => {
+    console.log("[Credenza] discountsScript — LOGIN triggered");
+    run();
+  });
+  if (passport.isLoggedIn) {
+    console.log("[Credenza] discountsScript — already logged in");
+    run();
+  }
+};
+
+// ============================================================
+// CART UPDATE
+// ============================================================
+
+const updateCart = async (passport, opts) => {
+  const userAddress = await passport.getAddress();
+  console.log("[Credenza] updateCart — address:", userAddress);
+  fetch("/cart/update.js", {
+    method: "post",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ note: userAddress, ...(opts || {}) }),
+  }).catch((e) => console.error("[Credenza] updateCart error:", e));
+};
+
+// ============================================================
 // HIDDEN COLLECTION MODAL
+//
+// config.hiddenCollection = {
+//   enabled: true,
+//   collectionHandle: "my-collection",
+//   storefrontToken: "xxx",
+//   gate: {
+//     type: "nft",
+//     contractAddress: "0x...",
+//     tokenId: "1"
+//   }
+// }
+// — or —
+//   gate: { type: "ruleset", rulesetId: "..." }
+// — or —
+//   gate: { type: "membership", membershipPackage: "0x..." }
+// ============================================================
+
+export const hiddenCollectionScript = (passport, config = CONFIG) => {
+  const run = async () => {
+    console.log("[Credenza] hiddenCollectionScript — start");
+    const { allowed } = await checkGate(passport, config.hiddenCollection.gate);
+
+    if (!allowed) {
+      console.log(
+        "[Credenza] hiddenCollectionScript — gate not passed, skipping",
+      );
+      return;
+    }
+
+    console.log(
+      "[Credenza] hiddenCollectionScript — fetching collection:",
+      config.hiddenCollection.collectionHandle,
+    );
+    try {
+      const res = await fetch("/api/2024-01/graphql.json", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Storefront-Access-Token":
+            config.hiddenCollection.storefrontToken,
+        },
+        body: JSON.stringify({
+          query: `{
+            collection(handle: "${config.hiddenCollection.collectionHandle}") {
+              products(first: 20) {
+                edges {
+                  node {
+                    title
+                    images(first: 1) { edges { node { url } } }
+                    variants(first: 1) {
+                      edges { node { id price { amount } } }
+                    }
+                  }
+                }
+              }
+            }
+          }`,
+        }),
+      });
+      const { data } = await res.json();
+      const products = data?.collection?.products?.edges || [];
+      console.log(
+        "[Credenza] hiddenCollectionScript — products fetched:",
+        products.length,
+      );
+      const mapped = products.map(({ node: p }) => ({
+        title: p.title,
+        image: p.images.edges[0]?.node.url,
+        price: p.variants.edges[0]?.node.price.amount,
+        variantId: p.variants.edges[0]?.node.id.split("/").pop(),
+      }));
+      if (mapped.length) showModal(mapped);
+    } catch (e) {
+      console.error("[Credenza] hiddenCollectionScript fetch error:", e);
+    }
+  };
+
+  passport.on("LOGIN", () => {
+    console.log("[Credenza] hiddenCollectionScript — LOGIN triggered");
+    run();
+  });
+  if (passport.isLoggedIn) {
+    console.log("[Credenza] hiddenCollectionScript — already logged in");
+    run();
+  }
+};
+
+// ============================================================
+// MODAL
 // ============================================================
 
 const injectModalStyles = () => {
@@ -317,6 +383,10 @@ const injectModalStyles = () => {
 };
 
 const showModal = (products) => {
+  if (sessionStorage.getItem("credenza_modal_shown")) {
+    console.log("[Credenza] showModal — already shown this session, skipping");
+    return;
+  }
   console.log("[Credenza] showModal — products count:", products.length);
   injectModalStyles();
 
@@ -347,6 +417,7 @@ const showModal = (products) => {
   `;
 
   document.body.appendChild(modal);
+  sessionStorage.setItem("credenza_modal_shown", "1");
 
   modal
     .querySelector("#nft-modal-close")
@@ -368,58 +439,23 @@ const showModal = (products) => {
           }),
         });
         btn.textContent = "✓ Added";
+        fetch("/?sections=cart-icon-bubble")
+          .then((r) => r.json())
+          .then((sections) => {
+            if (sections["cart-icon-bubble"]) {
+              document.getElementById("cart-icon-bubble").innerHTML =
+                new DOMParser()
+                  .parseFromString(sections["cart-icon-bubble"], "text/html")
+                  .getElementById("cart-icon-bubble").innerHTML;
+            }
+          })
+          .catch(() => {});
       } catch (e) {
         btn.textContent = "Error";
         console.error("[Credenza] addToCart error:", e);
       }
     });
   });
-};
-
-export const hiddenCollectionScript = async (passport, config) => {
-  const check = async () => {
-    console.log("[Credenza] hiddenCollection — checking NFT ownership");
-    const hasNft = await checkNftOwnership(passport, config.nft);
-    if (hasNft) {
-      console.log("[Credenza] hiddenCollection — no NFT, skipping. test");
-      return;
-    }
-
-    console.log(
-      "[Credenza] hiddenCollection — fetching collection:",
-      config.collectionHandle,
-    );
-    try {
-      const res = await fetch(
-        `/collections/${config.collectionHandle}/products.json`,
-      );
-      const { products } = await res.json();
-      console.log(
-        "[Credenza] hiddenCollection — products fetched:",
-        products.length,
-      );
-      const mapped = products.map((p) => ({
-        title: p.title,
-        image: p.images[0]?.src,
-        price: p.variants[0]?.price,
-        variantId: p.variants[0]?.id,
-      }));
-      if (mapped.length) showModal(mapped);
-    } catch (e) {
-      console.error("[Credenza] hiddenCollection fetch error:", e);
-    }
-  };
-
-  passport.on("LOGIN", () => {
-    console.log("[Credenza] hiddenCollectionScript — LOGIN triggered");
-    check();
-  });
-  if (passport.isLoggedIn) {
-    console.log(
-      "[Credenza] hiddenCollectionScript — already logged in, checking",
-    );
-    check();
-  }
 };
 
 // ============================================================
@@ -433,17 +469,18 @@ export const credenzaShopify = async (passport, config = CONFIG) => {
   );
 
   if (config.discounts?.enabled) {
-    console.log("[Credenza] discounts enabled");
-    discountsScript(passport);
-  }
-
-  if (config.membership?.enabled) {
-    console.log("[Credenza] membership enabled");
-    membershipScript(passport, config.membership.package);
+    console.log(
+      "[Credenza] discounts enabled, gate:",
+      config.discounts.gate?.type,
+    );
+    discountsScript(passport, config);
   }
 
   if (config.hiddenCollection?.enabled) {
-    console.log("[Credenza] hiddenCollection enabled");
-    hiddenCollectionScript(passport, config.hiddenCollection);
+    console.log(
+      "[Credenza] hiddenCollection enabled, gate:",
+      config.hiddenCollection.gate?.type,
+    );
+    hiddenCollectionScript(passport, config);
   }
 };
