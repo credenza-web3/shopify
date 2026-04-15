@@ -418,13 +418,22 @@ const showModal = (products) => {
       btn.textContent = "Adding...";
       console.log("[Credenza] addToCart — variantId:", btn.dataset.variant);
       try {
-        await fetch("/cart/add.js", {
+        const variantId = Number(btn.dataset.variant);
+        console.log("[Credenza] addToCart — variantId (numeric):", variantId);
+        const res = await fetch("/cart/add.js", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            items: [{ id: btn.dataset.variant, quantity: 1 }],
+            items: [{ id: variantId, quantity: 1 }],
           }),
         });
+        const data = await res.json();
+        console.log("[Credenza] addToCart — response:", data);
+        if (!res.ok) {
+          console.error("[Credenza] addToCart — error:", data);
+          btn.textContent = "Error";
+          return;
+        }
         btn.textContent = "Added";
       } catch (e) {
         btn.textContent = "Error";
