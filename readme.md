@@ -119,29 +119,4 @@ hiddenCollection: {
 }
 ```
 
-Supported gate types: `nft`, `ruleset`, `membership`.
-
-To hide the collection from the `/collections/` page, add to the collections loop in `sections/main-list-collections.liquid`:
-
-```liquid
-{% if collection.handle == settings.credenza_hidden_collection %}
-  {% continue %}
-{% endif %}
-```
-
-And add to `config/settings_schema.json`:
-
-```json
-{
-  "name": "Credenza",
-  "settings": [
-    {
-      "type": "text",
-      "id": "credenza_hidden_collection",
-      "label": "Hidden collection handle"
-    }
-  ]
-}
-```
-
--
+Supported gate types: `nft`, `offer`, `membership`.
