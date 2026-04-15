@@ -55,7 +55,7 @@ export const initPassport = async () => {
 
 export const showNavScript = async (passport) => {
   const renderLoginImageOrPassportNav = () => {
-    const customerEmail = "{{ customer.email }}";
+    const customerEmail = window.shopifyCustomer?.email;
     console.log(
       "[Credenza] renderNav — isLoggedIn:",
       passport.isLoggedIn,
@@ -63,7 +63,7 @@ export const showNavScript = async (passport) => {
       customerEmail,
     );
 
-    if (passport.isLoggedIn && customerEmail) {
+    if (customerEmail) {
       passport.showNavigation({ left: "25px", bottom: "50px" });
     }
   };
