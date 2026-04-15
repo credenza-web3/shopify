@@ -56,7 +56,6 @@ export const initPassport = async () => {
 export const showNavScript = async (passport) => {
   const renderLoginImageOrPassportNav = () => {
     const customerEmail = "{{ customer.email }}";
-    const loginButton = document.querySelector("#login-button-image");
     console.log(
       "[Credenza] renderNav — isLoggedIn:",
       passport.isLoggedIn,
@@ -64,12 +63,7 @@ export const showNavScript = async (passport) => {
       customerEmail,
     );
 
-    if (customerEmail && !passport.isLoggedIn) {
-      if (loginButton) loginButton.style.display = "block";
-    }
-
-    if (passport.isLoggedIn) {
-      if (loginButton) loginButton.style.display = "none";
+    if (passport.isLoggedIn && customerEmail) {
       passport.showNavigation({ left: "25px", bottom: "50px" });
     }
   };
