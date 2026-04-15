@@ -52,11 +52,11 @@ export const showNavScript = async (passport) => {
 // GATE — unified access check
 //
 // gate.type = "nft"        → checks ERC-1155 token balance
-// gate.type = "ruleset"    → validates ruleset via Credenza API
+// gate.type = "offer"      → validates offer via Credenza API
 // gate.type = "membership" → checks membership via passport
 //
 // Returns { allowed: boolean, code: string | null }
-// code — discount code (ruleset and membership only)
+// code — discount code (offer and membership only)
 // ============================================================
 
 const checkGate = async (passport, gate) => {
@@ -67,9 +67,9 @@ const checkGate = async (passport, gate) => {
     return { allowed: true, code: null };
   }
 
-  if (gate.type === "ruleset") {
-    const result = await validateRuleset(passport, gate.rulesetId);
-    return { allowed: !!result, code: result?.discount?.code || null };
+  if (gate.type === "offer") {
+    const code = await validateOffer(passport, gate.offerId);
+    return { allowed: !!code, code };
   }
 
   if (gate.type === "membership") {
@@ -98,46 +98,33 @@ const checkGate = async (passport, gate) => {
 };
 
 // ============================================================
-// RULESET VALIDATION
+// OFFER VALIDATION
 // ============================================================
 
-const validateRuleset = async (passport, rulesetId) => {
-  const apiUrl = "https://api.testnets.credenza.online";
-  console.log("[Credenza] validateRuleset — rulesetId:", rulesetId);
+const validateOffer = async (passport, offerId) => {
+  const apiUrl = "https://api.staging.credenza3.com";
+  console.log("[Credenza] validateOffer — offerId:", offerId);
 
-  const timestamp = String(new Date().getTime());
-  const providerObj = await passport.getWeb3Provider();
-  const signer = await providerObj.getSigner();
-  const signature = await signer.signMessage(timestamp);
-
-  const result = await fetch(`${apiUrl}/discounts/rulesets/validate`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${passport.accessToken}`,
-    },
-    body: JSON.stringify({
-      ruleSetId: rulesetId,
-      passportId: {
-        payload: timestamp,
-        sig: signature,
-        chainId: CONFIG.chainId,
-        scanType: "PASSPORT_ID",
+  const result = await fetch(
+    `${apiUrl}/promo/offers/${offerId}/check?sub=true&reveal_code=true`,
+    {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+        "x-client-id": CONFIG.clientId,
+        Authorization: `Bearer ${passport.accessToken}`,
       },
-    }),
-  });
+    },
+  );
 
   if (!result.ok) {
-    console.warn(
-      "[Credenza] validateRuleset — response not ok:",
-      result.status,
-    );
+    console.warn("[Credenza] validateOffer — response not ok:", result.status);
     return null;
   }
 
-  const data = await result.json();
-  console.log("[Credenza] validateRuleset — response:", data);
-  return data;
+  const code = await result.text();
+  console.log("[Credenza] validateOffer — code:", code);
+  return code || null;
 };
 
 // ============================================================
@@ -180,8 +167,8 @@ const checkNftOwnership = async (passport, gate) => {
 //   enabled: true,
 //   defaultCode: "FALLBACK",
 //   gate: {
-//     type: "ruleset",
-//     rulesetId: "abc123"
+//     type: "offer",
+//     offerId: "abc123"
 //   }
 // }
 // — or —
@@ -256,7 +243,7 @@ const updateCart = async (passport, opts) => {
 //   }
 // }
 // — or —
-//   gate: { type: "ruleset", rulesetId: "..." }
+//   gate: { type: "offer", offerId: "..." }
 // — or —
 //   gate: { type: "membership", membershipPackage: "0x..." }
 // ============================================================
@@ -438,18 +425,7 @@ const showModal = (products) => {
             items: [{ id: btn.dataset.variant, quantity: 1 }],
           }),
         });
-        btn.textContent = "✓ Added";
-        fetch("/?sections=cart-icon-bubble")
-          .then((r) => r.json())
-          .then((sections) => {
-            if (sections["cart-icon-bubble"]) {
-              document.getElementById("cart-icon-bubble").innerHTML =
-                new DOMParser()
-                  .parseFromString(sections["cart-icon-bubble"], "text/html")
-                  .getElementById("cart-icon-bubble").innerHTML;
-            }
-          })
-          .catch(() => {});
+        btn.textContent = "Added";
       } catch (e) {
         btn.textContent = "Error";
         console.error("[Credenza] addToCart error:", e);

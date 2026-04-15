@@ -22,8 +22,8 @@ In `layout/theme.liquid` before `</body>`:
       enabled: false,
       defaultCode: "FALLBACK_CODE",
       gate: {
-        type: "ruleset",
-        rulesetId: "YOUR_RULESET_ID"
+        type: "offer",
+        offerId: "YOUR_OFFER_ID"
       }
     },
 
@@ -66,14 +66,14 @@ gate: {
 }
 ```
 
-### `type: "ruleset"` — Credenza API validation
+### `type: "offer"` — Credenza API validation
 
-Returns a discount code from the ruleset response.
+Returns a discount code from the offer response.
 
 ```js
 gate: {
-  type: "ruleset",
-  rulesetId: "YOUR_RULESET_ID"
+  type: "offer",
+  offerId: "YOUR_OFFER_ID"
 }
 ```
 
@@ -100,11 +100,11 @@ On login, runs the gate check. If passed — applies a discount code (from gate 
 discounts: {
   enabled: true,
   defaultCode: "FALLBACK",  // used if gate returns no code
-  gate: { type: "ruleset", rulesetId: "..." }
+  gate: { type: "offer", offerId: "..." }
 }
 ```
 
-Supported gate types: `ruleset`, `membership`.
+Supported gate types: `offer`, `membership`.
 
 ### `hiddenCollection`
 
