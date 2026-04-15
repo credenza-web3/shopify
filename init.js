@@ -67,15 +67,6 @@ export const showNavScript = async (passport) => {
       passport.showNavigation({ left: "25px", bottom: "50px" });
     }
   };
-
-  passport.on("LOGIN", () => {
-    console.log("[Credenza] event: onLogin");
-    renderLoginImageOrPassportNav();
-  });
-  passport.on("LOGOUT", () => {
-    console.log("[Credenza] event: onLogout");
-    renderLoginImageOrPassportNav();
-  });
   renderLoginImageOrPassportNav();
 };
 
