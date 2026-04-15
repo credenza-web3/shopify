@@ -11,7 +11,7 @@ const CONFIG = {
   clientId: "67039801735659a157687bfb",
 
   discounts: {
-    enabled: true,
+    enabled: false,
     rulesetId: "68109520182622174f6fc7cb",
   },
 
@@ -21,7 +21,7 @@ const CONFIG = {
   },
 
   hiddenCollection: {
-    enabled: false,
+    enabled: true,
     collectionHandle: "sharks-test-shop-copy", // e.g. "members-only"
     nft: {
       contractAddress: "0x6c83c06a3edb16f6e79ae3c0cd9e21cfda35d25c",
@@ -253,8 +253,12 @@ const checkNftOwnership = async (passport, nftConfig) => {
       provider,
     );
     const balance = await contract.balanceOf(address, nftConfig.tokenId);
-    console.log("[Credenza] checkNftOwnership — balance:", balance.toString());
-    return balance.gt(0);
+    console.log(
+      "[Credenza] checkNftOwnership — balance:",
+      balance,
+      balance.toString(),
+    );
+    return balance > 0n;
   } catch (e) {
     console.error("[Credenza] checkNftOwnership failed:", e?.message || e);
     return false;
@@ -376,8 +380,8 @@ export const hiddenCollectionScript = async (passport, config) => {
   const check = async () => {
     console.log("[Credenza] hiddenCollection — checking NFT ownership");
     const hasNft = await checkNftOwnership(passport, config.nft);
-    if (!hasNft) {
-      console.log("[Credenza] hiddenCollection — no NFT, skipping");
+    if (hasNft) {
+      console.log("[Credenza] hiddenCollection — no NFT, skipping. test");
       return;
     }
 
