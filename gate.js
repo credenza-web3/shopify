@@ -23,6 +23,7 @@ const validateOffer = async (passport, offerId) => {
   );
   if (!res.ok) return null;
   const offers = await res.json();
+  console.log(validateOffer, offers);
 
   return offers[0]?.code || null;
 };
@@ -82,6 +83,7 @@ export const checkGate = async (passport, gate) => {
 
   if (gate.type === "offer") {
     const code = await validateOffer(passport, gate.offerId);
+    console.log("validateOffer code:", code);
     return { allowed: !!code, code };
   }
 
