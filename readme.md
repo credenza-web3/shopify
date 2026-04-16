@@ -104,7 +104,9 @@ discounts: {
 }
 ```
 
-Supported gate types: `offer`, `membership`.
+Supported gate types: `offer`, `membership`, `nft`.
+
+For `nft` gated discount, your token metadata should include field `code` with some value.
 
 ### `hiddenCollection`
 
